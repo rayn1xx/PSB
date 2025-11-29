@@ -1,6 +1,12 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
@@ -8,19 +14,22 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { BookOpen, Mail, Lock, User, ArrowRight } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { z } from "zod";
+import { apiLogin, apiSignup } from "@/api/api";
 
 const loginSchema = z.object({
   email: z.string().email("Неверный формат email").min(1, "Email обязателен"),
   password: z.string().min(6, "Пароль должен содержать минимум 6 символов"),
 });
 
-const signupSchema = loginSchema.extend({
-  name: z.string().min(2, "Имя должно содержать минимум 2 символа"),
-  confirmPassword: z.string(),
-}).refine((data) => data.password === data.confirmPassword, {
-  message: "Пароли не совпадают",
-  path: ["confirmPassword"],
-});
+const signupSchema = loginSchema
+  .extend({
+    name: z.string().min(2, "Имя должно содержать минимум 2 символа"),
+    confirmPassword: z.string(),
+  })
+  .refine((data) => data.password === data.confirmPassword, {
+    message: "Пароли не совпадают",
+    path: ["confirmPassword"],
+  });
 
 const Auth = () => {
   const navigate = useNavigate();
@@ -48,20 +57,22 @@ const Auth = () => {
 
     try {
       const validated = loginSchema.parse(loginData);
-      
-      // MOCK: Имитация запроса к бэкенду
-      await new Promise((resolve) => setTimeout(resolve, 1000));
 
-      // Сохраняем моковые данные в localStorage
-      localStorage.setItem("user", JSON.stringify({
-        id: "1",
-        name: "Иван Иванов",
-        email: validated.email,
-      }));
+      const { user } = await apiLogin(validated.email, validated.password);
+
+      // Чтобы MainLayout не ломался, дублируем юзера в localStorage
+      localStorage.setItem(
+        "user",
+        JSON.stringify({
+          id: user.id,
+          name: user.name,
+          email: user.email,
+        })
+      );
 
       toast({
-        title: "Успешный вход",
-        description: "Добро пожаловать в ПСБ Школу Цифровых Ролей!",
+        title: "Вход выполнен",
+        description: "Добро пожаловать в ПСБ Школу Цифровых Ролей",
       });
 
       navigate("/");
@@ -78,7 +89,8 @@ const Auth = () => {
         toast({
           variant: "destructive",
           title: "Ошибка входа",
-          description: "Неверный email или пароль",
+          description:
+            "Не удалось войти. Проверьте данные или попробуйте позже.",
         });
       }
     } finally {
@@ -94,15 +106,20 @@ const Auth = () => {
     try {
       const validated = signupSchema.parse(signupData);
 
-      // MOCK: Имитация запроса к бэкенду
-      await new Promise((resolve) => setTimeout(resolve, 1500));
+      const { user } = await apiSignup(
+        validated.name,
+        validated.email,
+        validated.password
+      );
 
-      // Сохраняем моковые данные
-      localStorage.setItem("user", JSON.stringify({
-        id: "1",
-        name: validated.name,
-        email: validated.email,
-      }));
+      localStorage.setItem(
+        "user",
+        JSON.stringify({
+          id: user.id,
+          name: user.name,
+          email: user.email,
+        })
+      );
 
       toast({
         title: "Регистрация успешна",
@@ -123,7 +140,7 @@ const Auth = () => {
         toast({
           variant: "destructive",
           title: "Ошибка регистрации",
-          description: "Не удалось создать аккаунт",
+          description: "Не удалось создать аккаунт. Попробуйте позже.",
         });
       }
     } finally {
@@ -142,18 +159,19 @@ const Auth = () => {
             </div>
             <div className="flex flex-col items-start">
               <span className="text-3xl font-bold">ПСБ</span>
-              <span className="text-sm text-muted-foreground">Школа Цифровых Ролей</span>
+              <span className="text-sm text-muted-foreground">
+                Школа Цифровых Ролей
+              </span>
             </div>
           </div>
 
           <div className="space-y-4">
             <h1 className="text-4xl md:text-5xl font-bold leading-tight">
-              Развивайте{" "}
-              <span className="text-gradient">цифровые навыки</span>
+              Развивайте <span className="text-gradient">цифровые навыки</span>
             </h1>
             <p className="text-lg text-muted-foreground">
-              Современная образовательная платформа для обучения финтех-технологиям, 
-              кибербезопасности и разработке
+              Современная образовательная платформа для обучения
+              финтех-технологиям, кибербезопасности и разработке
             </p>
           </div>
 
@@ -168,7 +186,9 @@ const Auth = () => {
             </div>
             <div className="space-y-1">
               <div className="text-3xl font-bold text-primary">50+</div>
-              <div className="text-sm text-muted-foreground">Преподавателей</div>
+              <div className="text-sm text-muted-foreground">
+                Преподавателей
+              </div>
             </div>
           </div>
         </div>
@@ -183,10 +203,12 @@ const Auth = () => {
               </div>
               <div className="flex flex-col items-start">
                 <span className="text-xl font-bold">ПСБ</span>
-                <span className="text-xs text-muted-foreground">Школа Цифровых Ролей</span>
+                <span className="text-xs text-muted-foreground">
+                  Школа Цифровых Ролей
+                </span>
               </div>
             </div>
-            
+
             <CardTitle className="text-2xl">Добро пожаловать</CardTitle>
             <CardDescription>
               Войдите в свой аккаунт или создайте новый
@@ -234,12 +256,17 @@ const Auth = () => {
                         className="pl-10"
                         value={loginData.password}
                         onChange={(e) =>
-                          setLoginData({ ...loginData, password: e.target.value })
+                          setLoginData({
+                            ...loginData,
+                            password: e.target.value,
+                          })
                         }
                       />
                     </div>
                     {errors.password && (
-                      <p className="text-sm text-destructive">{errors.password}</p>
+                      <p className="text-sm text-destructive">
+                        {errors.password}
+                      </p>
                     )}
                   </div>
 
@@ -296,7 +323,10 @@ const Auth = () => {
                         className="pl-10"
                         value={signupData.email}
                         onChange={(e) =>
-                          setSignupData({ ...signupData, email: e.target.value })
+                          setSignupData({
+                            ...signupData,
+                            email: e.target.value,
+                          })
                         }
                       />
                     </div>
@@ -316,12 +346,17 @@ const Auth = () => {
                         className="pl-10"
                         value={signupData.password}
                         onChange={(e) =>
-                          setSignupData({ ...signupData, password: e.target.value })
+                          setSignupData({
+                            ...signupData,
+                            password: e.target.value,
+                          })
                         }
                       />
                     </div>
                     {errors.password && (
-                      <p className="text-sm text-destructive">{errors.password}</p>
+                      <p className="text-sm text-destructive">
+                        {errors.password}
+                      </p>
                     )}
                   </div>
 

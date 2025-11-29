@@ -1,26 +1,58 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Calendar as CalendarIcon, Clock, ChevronLeft, ChevronRight } from "lucide-react";
+import {
+  Calendar as CalendarIcon,
+  Clock,
+  ChevronLeft,
+  ChevronRight,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { apiGetCalendar } from "@/api/api";
+import type { CalendarEvent } from "@/api/types";
 
 const Calendar = () => {
-  const [currentDate] = useState(new Date(2024, 11, 1)); // December 2024
-
   // MOCK: В реальном приложении события будут загружаться с бэкенда
-  const events = [
-    { date: "2024-12-23", title: "ДЗ 3.2: API аутентификации", type: "assignment", course: "Финтех" },
-    { date: "2024-12-25", title: "Тест по модулю 3", type: "test", course: "Финтех" },
-    { date: "2024-12-26", title: "ДЗ 3.3: Тестирование", type: "assignment", course: "Финтех" },
-    {
-      date: "2024-12-27",
-      title: "Тест 2.1: Основы кибербезопасности",
-      type: "test",
-      course: "Кибербезопасность",
-    },
-    { date: "2024-12-30", title: "ДЗ 1.3: Введение в ML", type: "assignment", course: "AI в финансах" },
-  ];
+  const [currentDate] = useState(new Date()); // можно оставить как есть
+  const [events, setEvents] = useState<CalendarEvent[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    async function load() {
+      try {
+        const start = new Date(
+          currentDate.getFullYear(),
+          currentDate.getMonth(),
+          1
+        );
+        const end = new Date(
+          currentDate.getFullYear(),
+          currentDate.getMonth() + 1,
+          0
+        );
+
+        const from = start.toISOString().slice(0, 10);
+        const to = end.toISOString().slice(0, 10);
+
+        const data = await apiGetCalendar(from, to);
+        if (!isMounted) return;
+        setEvents(data);
+      } catch (e) {
+        console.error(e);
+      } finally {
+        if (isMounted) setIsLoading(false);
+      }
+    }
+
+    load();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [currentDate]);
 
   const getDaysInMonth = (date: Date) => {
     const year = date.getFullYear();
@@ -36,10 +68,9 @@ const Calendar = () => {
   const { daysInMonth, startingDayOfWeek } = getDaysInMonth(currentDate);
 
   const getEventsForDate = (day: number) => {
-    const dateString = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(
-      2,
-      "0"
-    )}-${String(day).padStart(2, "0")}`;
+    const dateString = `${currentDate.getFullYear()}-${String(
+      currentDate.getMonth() + 1
+    ).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
     return events.filter((event) => event.date === dateString);
   };
 
@@ -47,7 +78,9 @@ const Calendar = () => {
   const emptyDays = Array.from({ length: startingDayOfWeek }, (_, i) => i);
 
   const getEventColor = (type: string) => {
-    return type === "assignment" ? "bg-accent text-accent-foreground" : "bg-primary text-primary-foreground";
+    return type === "assignment"
+      ? "bg-accent text-accent-foreground"
+      : "bg-primary text-primary-foreground";
   };
 
   return (
@@ -55,7 +88,9 @@ const Calendar = () => {
       {/* Header */}
       <div className="space-y-2">
         <h1 className="text-3xl font-bold">Календарь</h1>
-        <p className="text-muted-foreground">Отслеживайте дедлайны и важные события</p>
+        <p className="text-muted-foreground">
+          Отслеживайте дедлайны и важные события
+        </p>
       </div>
 
       <div className="grid gap-6 md:grid-cols-[1fr_350px]">
@@ -79,7 +114,10 @@ const Calendar = () => {
               {/* Week Days */}
               <div className="grid grid-cols-7 gap-2">
                 {["Вс", "Пн", "Вт", "Ср", "Чт", "Пт", "Сб"].map((day) => (
-                  <div key={day} className="text-center text-sm font-medium text-muted-foreground p-2">
+                  <div
+                    key={day}
+                    className="text-center text-sm font-medium text-muted-foreground p-2"
+                  >
                     {day}
                   </div>
                 ))}
@@ -167,14 +205,18 @@ const Calendar = () => {
                     </div>
                     <div className="flex-1 space-y-1">
                       <div className="flex items-start justify-between gap-2">
-                        <p className="text-sm font-medium leading-tight">{event.title}</p>
+                        <p className="text-sm font-medium leading-tight">
+                          {event.title}
+                        </p>
                       </div>
                       <div className="flex items-center gap-2 text-xs text-muted-foreground">
                         <Badge variant="outline" className="text-xs">
                           {event.course}
                         </Badge>
                         <span>•</span>
-                        <span className="capitalize">{event.type === "assignment" ? "Задание" : "Тест"}</span>
+                        <span className="capitalize">
+                          {event.type === "assignment" ? "Задание" : "Тест"}
+                        </span>
                       </div>
                     </div>
                   </div>
