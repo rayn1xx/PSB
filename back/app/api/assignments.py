@@ -9,7 +9,7 @@ from app.db.models import User, AssignmentStatus, Submission, SubmissionFile
 from app.utils.deps import get_current_user
 from app.repo.assignment import AssignmentRepository, SubmissionRepository
 from app.repo.course import StudentCourseRepository
-from app.services.s3_service import s3_service
+# from app.services.s3_service import s3_service  # Отключено
 from app.schemas.assignment import (
     AssignmentsListResponse,
     AssignmentListItem,
@@ -185,38 +185,11 @@ async def create_submission(
     )
     submission = await submission_repo.create(submission)
     
-    # Загружаем файлы в S3
-    for file in files:
-        try:
-            if not s3_service.is_configured():
-                raise HTTPException(
-                    status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-                    detail="File storage is not configured"
-                )
-            
-            # Загружаем файл в S3
-            result = await s3_service.upload_file(
-                file=file,
-                folder="submissions",
-                prefix=f"{assignment_id}/{submission.id}"
-            )
-            
-            # Сохраняем информацию о файле в БД
-            submission_file = SubmissionFile(
-                submission_id=submission.id,
-                file_url=result["file_url"],
-                file_name=result["file_name"],
-                file_size=result["file_size"]
-            )
-            session.add(submission_file)
-            
-        except Exception as e:
-            # Если загрузка не удалась, откатываем транзакцию
-            await session.rollback()
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=f"Failed to upload file {file.filename}: {str(e)}"
-            )
+    # Загрузка файлов отключена (S3 не используется)
+    # Файлы игнорируются, но отправка создается
+    if files:
+        # Можно добавить логирование, что файлы были проигнорированы
+        pass
     
     await session.commit()
     await session.refresh(submission)
