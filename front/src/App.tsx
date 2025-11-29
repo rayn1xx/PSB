@@ -5,11 +5,12 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import MainLayout from "./components/Layout/MainLayout";
 import Courses from "./pages/Courses";
-import CourseDetail from "./pages/CourseDetail";
 import Calendar from "./pages/Calendar";
 import Profile from "./pages/Profile";
 import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
+import CourseDetail from "./pages/CourseDetail";
+import CourseLearn from "@/pages/CourseLearn";
 
 const queryClient = new QueryClient();
 
@@ -27,9 +28,13 @@ const App = () => (
               <MainLayout>
                 <Routes>
                   <Route path="/" element={<Courses />} />
-                  <Route path="/courses/:courseId" element={<CourseDetail />} />
+                  <Route path="courses/:courseId" element={<CourseDetail />} />
                   <Route path="/calendar" element={<Calendar />} />
                   <Route path="/profile" element={<Profile />} />
+                  <Route
+                    path="courses/:courseId/learn"
+                    element={<CourseLearn />}
+                  />
                   <Route path="*" element={<NotFound />} />
                 </Routes>
               </MainLayout>

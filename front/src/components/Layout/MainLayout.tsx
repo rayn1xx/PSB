@@ -11,9 +11,16 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+
+// ...
+
+<NotificationsButton />;
+import { NotificationsButton } from "./NotificationsButton";
+
 import { Badge } from "@/components/ui/badge";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { useToast } from "@/hooks/use-toast";
+import { apiMe, apiGetNotifications } from "@/api/api";
 import {
   BookOpen,
   Calendar,
@@ -35,25 +42,50 @@ const MainLayout = ({ children }: MainLayoutProps) => {
   const location = useLocation();
   const navigate = useNavigate();
   const { toast } = useToast();
-  const [notifications] = useState(3);
-  const [user, setUser] = useState<{ name: string; email: string } | null>(null);
+  const [notifications, setNotifications] = useState(0);
+  const [user, setUser] = useState<{ name: string; email: string } | null>(
+    null
+  );
 
   useEffect(() => {
-    // MOCK: Проверка аутентификации
-    const userData = localStorage.getItem("user");
-    if (userData) {
-      setUser(JSON.parse(userData));
-    } else {
-      navigate("/auth");
+    let isMounted = true;
+
+    async function init() {
+      try {
+        // 1) Пытаемся получить юзера с бэка
+        const me = await apiMe();
+
+        if (!isMounted) return;
+
+        if (!me) {
+          // Нет токена / не залогинен
+          navigate("/auth");
+          return;
+        }
+
+        setUser({ name: me.name, email: me.email });
+
+        // 2) Тянем уведомления (если бэк упадёт, apiGetNotifications вернёт мок)
+        const notifs = await apiGetNotifications();
+        if (!isMounted) return;
+        setNotifications(notifs.filter((n) => !n.read).length);
+      } catch (e) {
+        // На всякий случай последний fallback – всё равно отправляем на /auth
+        navigate("/auth");
+      }
     }
+
+    init();
+
+    return () => {
+      isMounted = false;
+    };
   }, [navigate]);
 
   const handleLogout = () => {
     localStorage.removeItem("user");
-    toast({
-      title: "Вы вышли из системы",
-      description: "До встречи!",
-    });
+    localStorage.removeItem("accessToken");
+    localStorage.removeItem("refreshToken");
     navigate("/auth");
   };
 
@@ -81,7 +113,9 @@ const MainLayout = ({ children }: MainLayoutProps) => {
             </div>
             <div className="flex flex-col">
               <span className="text-lg font-bold">ПСБ</span>
-              <span className="text-xs text-muted-foreground">Школа Цифровых Ролей</span>
+              <span className="text-xs text-muted-foreground">
+                Школа Цифровых Ролей
+              </span>
             </div>
           </Link>
 
@@ -95,7 +129,8 @@ const MainLayout = ({ children }: MainLayoutProps) => {
                     variant={isActive(item.href) ? "secondary" : "ghost"}
                     className={cn(
                       "gap-2",
-                      isActive(item.href) && "bg-primary/10 text-primary hover:bg-primary/20"
+                      isActive(item.href) &&
+                        "bg-primary/10 text-primary hover:bg-primary/20"
                     )}
                   >
                     <Icon className="h-4 w-4" />
@@ -112,17 +147,7 @@ const MainLayout = ({ children }: MainLayoutProps) => {
             <ThemeToggle />
 
             {/* Notifications */}
-            <Button variant="ghost" size="icon" className="relative">
-              <Bell className="h-5 w-5" />
-              {notifications > 0 && (
-                <Badge
-                  variant="destructive"
-                  className="absolute -right-1 -top-1 h-5 w-5 rounded-full p-0 text-xs"
-                >
-                  {notifications}
-                </Badge>
-              )}
-            </Button>
+            <NotificationsButton />
 
             {/* User Menu */}
             <DropdownMenu>
@@ -130,7 +155,10 @@ const MainLayout = ({ children }: MainLayoutProps) => {
                 <Button variant="ghost" className="gap-2">
                   <Avatar className="h-8 w-8">
                     <AvatarFallback className="bg-primary text-primary-foreground">
-                      {user.name.split(" ").map(n => n[0]).join("")}
+                      {user.name
+                        .split(" ")
+                        .map((n) => n[0])
+                        .join("")}
                     </AvatarFallback>
                   </Avatar>
                   <span className="hidden md:inline">{user.name}</span>
@@ -139,7 +167,9 @@ const MainLayout = ({ children }: MainLayoutProps) => {
               <DropdownMenuContent align="end" className="w-56">
                 <DropdownMenuLabel>
                   <div className="flex flex-col space-y-1">
-                    <p className="text-sm font-medium leading-none">{user.name}</p>
+                    <p className="text-sm font-medium leading-none">
+                      {user.name}
+                    </p>
                     <p className="text-xs leading-none text-muted-foreground">
                       {user.email}
                     </p>
@@ -157,7 +187,7 @@ const MainLayout = ({ children }: MainLayoutProps) => {
                   Настройки
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem 
+                <DropdownMenuItem
                   className="text-destructive cursor-pointer"
                   onClick={handleLogout}
                 >
