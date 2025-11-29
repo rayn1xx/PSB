@@ -10,7 +10,7 @@ class GradeItem(BaseModel):
     title: str
     type: str  # "assignment" or "test"
     score: Optional[float]
-    max_score: float
+    max_score: Optional[float]
     graded_at: Optional[datetime]
 
     class Config:

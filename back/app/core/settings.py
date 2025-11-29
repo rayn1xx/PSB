@@ -15,6 +15,12 @@ class Settings(BaseSettings):
     ISSUER: str | None = None 
     AUDIENCE: str | None = None
     REDIS_URL: str | None = None
+    # Yandex S3 настройки
+    S3_ENDPOINT: str | None = None  # https://storage.yandexcloud.net
+    S3_ACCESS_KEY_ID: str | None = None
+    S3_SECRET_ACCESS_KEY: str | None = None
+    S3_BUCKET_NAME: str | None = None
+    S3_REGION: str = "ru-central1"
 
 
 
