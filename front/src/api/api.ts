@@ -67,6 +67,108 @@ function setTokens(tokens: AuthTokens) {
   }
 }
 
+// ========= ТИПЫ ДЛЯ ОТВЕТОВ БЭКА =========
+
+type BackendUser = {
+  id: string;
+  email: string;
+  first_name?: string | null;
+  last_name?: string | null;
+  role: string;
+  group?: string | null;
+  university?: string | null;
+  phone?: string | null;
+  timezone?: string | null;
+};
+
+type BackendAuthResponse = {
+  access_token: string;
+  refresh_token: string;
+  user: BackendUser;
+};
+
+type BackendProfile = {
+  id: string;
+  email: string;
+  first_name?: string | null;
+  last_name?: string | null;
+  group?: string | null;
+  university?: string | null;
+  phone?: string | null;
+  timezone?: string | null;
+};
+
+type BackendNotificationSettings = {
+  email_assignment_graded: boolean;
+  email_test_graded: boolean;
+  email_deadline_reminder: boolean;
+  email_comment_added: boolean;
+  email_course_announcement: boolean;
+  reminder_days_before: number;
+};
+
+// ========= МАППЕРЫ БЭК → ФРОНТ =========
+
+function mapBackendUserToAuthUser(u: BackendUser): AuthUser {
+  const nameParts = [u.first_name, u.last_name].filter(Boolean);
+  const name = nameParts.length ? nameParts.join(" ") : u.email;
+
+  const allowedRoles: AuthUser["role"][] = ["student", "teacher", "admin"];
+  const role = allowedRoles.includes(u.role as AuthUser["role"])
+    ? (u.role as AuthUser["role"])
+    : "student";
+
+  return {
+    id: u.id,
+    name,
+    email: u.email,
+    role,
+  };
+}
+
+function mapAuthTokensFromBackend(r: BackendAuthResponse): AuthTokens {
+  return {
+    accessToken: r.access_token,
+    refreshToken: r.refresh_token,
+  };
+}
+
+function mapBackendProfile(p: BackendProfile): Profile {
+  return {
+    id: p.id,
+    firstName: p.first_name ?? "",
+    lastName: p.last_name ?? "",
+    email: p.email,
+    phone: p.phone ?? "",
+    group: p.group ?? "",
+    university: p.university ?? "",
+    timezone: p.timezone ?? "",
+    // enrolledSince / completedCourses можно оставить undefined
+  };
+}
+
+function mapBackendNotifToFrontend(
+  n: BackendNotificationSettings
+): NotificationSettings {
+  return {
+    emailAssignments: n.email_assignment_graded,
+    emailTests: n.email_test_graded,
+    emailNews: n.email_course_announcement,
+    inAppReminders: n.email_deadline_reminder,
+  };
+}
+
+function mapFrontendNotifToBackend(
+  n: NotificationSettings
+): Partial<BackendNotificationSettings> {
+  return {
+    email_assignment_graded: n.emailAssignments,
+    email_test_graded: n.emailTests,
+    email_course_announcement: n.emailNews,
+    email_deadline_reminder: n.inAppReminders,
+  };
+}
+
 async function request<T>(
   path: string,
   options: RequestInit = {},
@@ -118,21 +220,17 @@ export async function apiLogin(
   password: string
 ): Promise<{ user: AuthUser; tokens: AuthTokens }> {
   try {
-    const data = await request<{
-      accessToken: string;
-      refreshToken: string;
-      user: AuthUser;
-    }>("/auth/login", {
+    const data = await request<BackendAuthResponse>("/auth/login", {
       method: "POST",
       body: JSON.stringify({ email, password }),
     });
 
-    setTokens({
-      accessToken: data.accessToken,
-      refreshToken: data.refreshToken,
-    });
+    const tokens = mapAuthTokensFromBackend(data);
+    setTokens(tokens);
 
-    return { user: data.user, tokens: data };
+    const user = mapBackendUserToAuthUser(data.user);
+
+    return { user, tokens };
   } catch (error) {
     console.warn("apiLogin failed, using mock user", error);
     const mockUser: AuthUser = {
@@ -156,21 +254,25 @@ export async function apiSignup(
   password: string
 ): Promise<{ user: AuthUser; tokens: AuthTokens }> {
   try {
-    const data = await request<{
-      accessToken: string;
-      refreshToken: string;
-      user: AuthUser;
-    }>("/auth/signup", {
+    const [firstName, ...rest] = name.split(" ");
+    const lastName = rest.join(" ") || undefined;
+
+    const data = await request<BackendAuthResponse>("/auth/signup", {
       method: "POST",
-      body: JSON.stringify({ name, email, password }),
+      body: JSON.stringify({
+        email,
+        password,
+        first_name: firstName,
+        last_name: lastName,
+      }),
     });
 
-    setTokens({
-      accessToken: data.accessToken,
-      refreshToken: data.refreshToken,
-    });
+    const tokens = mapAuthTokensFromBackend(data);
+    setTokens(tokens);
 
-    return { user: data.user, tokens: data };
+    const user = mapBackendUserToAuthUser(data.user);
+
+    return { user, tokens };
   } catch (error) {
     console.warn("apiSignup failed, using mock user", error);
     const mockUser: AuthUser = {
@@ -190,8 +292,8 @@ export async function apiSignup(
 
 export async function apiMe(): Promise<AuthUser | null> {
   try {
-    const data = await request<AuthUser>("/auth/me");
-    return data;
+    const data = await request<BackendUser>("/auth/me");
+    return mapBackendUserToAuthUser(data);
   } catch (error) {
     console.warn("apiMe failed, using mock", error);
     return {
@@ -207,7 +309,8 @@ export async function apiMe(): Promise<AuthUser | null> {
 
 export async function apiGetProfile(): Promise<Profile> {
   try {
-    return await request<Profile>("/profile");
+    const data = await request<BackendProfile>("/profile");
+    return mapBackendProfile(data);
   } catch (error) {
     console.warn("apiGetProfile failed, using mock", error);
     return mockProfile;
@@ -218,22 +321,32 @@ export async function apiUpdateProfile(
   payload: Partial<Profile>
 ): Promise<Profile> {
   try {
-    return await request<Profile>("/profile", {
+    const body: Partial<BackendProfile> = {};
+    if (payload.email !== undefined) body.email = payload.email;
+    if (payload.firstName !== undefined) body.first_name = payload.firstName;
+    if (payload.lastName !== undefined) body.last_name = payload.lastName;
+    if (payload.group !== undefined) body.group = payload.group;
+    if (payload.university !== undefined) body.university = payload.university;
+    if (payload.phone !== undefined) body.phone = payload.phone;
+    if (payload.timezone !== undefined) body.timezone = payload.timezone;
+
+    const data = await request<BackendProfile>("/profile", {
       method: "PUT",
-      body: JSON.stringify(payload),
+      body: JSON.stringify(body),
     });
+    return mapBackendProfile(data);
   } catch (error) {
     console.warn("apiUpdateProfile failed, using mock", error);
-    // Примитивный merge с мок-профилем
     return { ...mockProfile, ...payload };
   }
 }
 
 export async function apiGetNotificationSettings(): Promise<NotificationSettings> {
   try {
-    return await request<NotificationSettings>(
+    const data = await request<BackendNotificationSettings>(
       "/profile/notifications-settings"
     );
+    return mapBackendNotifToFrontend(data);
   } catch (error) {
     console.warn("apiGetNotificationSettings failed, using mock", error);
     return mockNotificationSettings;
@@ -244,9 +357,10 @@ export async function apiUpdateNotificationSettings(
   payload: NotificationSettings
 ): Promise<NotificationSettings> {
   try {
+    const body = mapFrontendNotifToBackend(payload);
     await request("/profile/notifications-settings", {
       method: "PUT",
-      body: JSON.stringify(payload),
+      body: JSON.stringify(body),
     });
     return payload;
   } catch (error) {
