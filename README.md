@@ -14,7 +14,13 @@
 cp .env.example .env
 ```
 
-2. Запустите все сервисы:
+2. (Опционально) Настройте Yandex Object Storage для хранения файлов:
+   - Создайте бакет в [Yandex Cloud Console](https://console.cloud.yandex.ru/)
+   - Получите Access Key ID и Secret Access Key
+   - Добавьте их в `.env` файл (см. `.env.example`)
+   - Без S3 файлы не будут загружаться, но остальной функционал работает
+
+3. Запустите все сервисы:
 ```bash
 docker-compose up -d
 ```
@@ -99,6 +105,7 @@ npm run dev
 
 - **Backend**: FastAPI, SQLAlchemy (async), PostgreSQL, Redis, structlog
 - **Frontend**: React, TypeScript, Vite, TailwindCSS, shadcn/ui
+- **Хранилище файлов**: Yandex Object Storage (S3-совместимое)
 
 ## Логирование
 

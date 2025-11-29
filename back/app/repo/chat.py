@@ -1,7 +1,7 @@
 from typing import List, Optional
 from uuid import UUID
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func
+from sqlalchemy import select, func, text
 from sqlalchemy.orm import selectinload
 
 from app.db.models import ChatChannel, Message
@@ -34,7 +34,7 @@ class ChatChannelRepository(BaseRepository[ChatChannel]):
                 .where(
                     Message.channel_id == channel.id,
                     Message.sender_id != user_id,
-                    Message.created_at > func.now() - func.make_interval(days=30)  # пример: за последние 30 дней
+                    Message.created_at > func.now() - text("INTERVAL '30 days'")  # за последние 30 дней
                 )
             )
             result.append({

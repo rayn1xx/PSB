@@ -67,8 +67,13 @@ async def get_course_grades(
     tests = await test_repo.get_by_course(course_id)
     for test in tests:
         best_attempt = await attempt_repo.get_best_attempt(test.id, current_user.id)
+        
+        # Для тестов max_score берем из попытки, если есть, иначе None
+        test_max_score = best_attempt.max_score if best_attempt else None
+        if test_max_score:
+            max_total_score += test_max_score
+        
         if best_attempt:
-            max_total_score += best_attempt.max_score
             total_score += best_attempt.score
         
         items.append(GradeItem(
@@ -77,7 +82,7 @@ async def get_course_grades(
             title=test.title,
             type="test",
             score=best_attempt.score if best_attempt else None,
-            max_score=best_attempt.max_score if best_attempt else None,
+            max_score=test_max_score,
             graded_at=best_attempt.completed_at if best_attempt else None
         ))
     

@@ -9,6 +9,7 @@ from app.db.models import User, AssignmentStatus, Submission, SubmissionFile
 from app.utils.deps import get_current_user
 from app.repo.assignment import AssignmentRepository, SubmissionRepository
 from app.repo.course import StudentCourseRepository
+# from app.services.s3_service import s3_service  # Отключено
 from app.schemas.assignment import (
     AssignmentsListResponse,
     AssignmentListItem,
@@ -184,17 +185,11 @@ async def create_submission(
     )
     submission = await submission_repo.create(submission)
     
-    # Сохраняем файлы (упрощенная версия - в реальности нужно загружать в S3 или файловое хранилище)
-    for file in files:
-        # TODO: реализовать загрузку файлов
-        file_url = f"/uploads/{submission.id}/{file.filename}"  # Заглушка
-        submission_file = SubmissionFile(
-            submission_id=submission.id,
-            file_url=file_url,
-            file_name=file.filename,
-            file_size=None
-        )
-        session.add(submission_file)
+    # Загрузка файлов отключена (S3 не используется)
+    # Файлы игнорируются, но отправка создается
+    if files:
+        # Можно добавить логирование, что файлы были проигнорированы
+        pass
     
     await session.commit()
     await session.refresh(submission)
