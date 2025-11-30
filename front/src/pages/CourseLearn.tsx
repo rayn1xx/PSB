@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import CourseChat from "@/components/CourseChat";
 import {
   ArrowLeft,
   BookOpen,
@@ -194,7 +195,7 @@ const CourseLearn = () => {
           <Progress value={totalProgress} className="h-1.5 w-48" />
         </div>
       </div>
-
+      {courseId && <CourseChat courseId={courseId} />}
       {/* Layout: sidebar + content */}
       <div className="grid gap-4 md:grid-cols-[minmax(0,1.4fr)_minmax(0,2fr)]">
         {/* Sidebar materials */}

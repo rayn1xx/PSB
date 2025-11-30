@@ -45,11 +45,15 @@ import {
 
 // ========= БАЗОВЫЙ HTTP-ХЕЛПЕР =========
 
-const RAW_BASE_URL = import.meta.env.VITE_API_URL?.replace(/\/$/, "") || "";
-const API_BASE_URL = RAW_BASE_URL ? `${RAW_BASE_URL}/api` : "/api";
+const API_BASE_URL =
+  (import.meta.env.VITE_API_URL as string | undefined)?.replace(/\/$/, "") ||
+  "/api";
+
+console.log("API_BASE_URL =", API_BASE_URL);
+
 const AUTH_TOKEN_KEY = "accessToken";
 const REFRESH_TOKEN_KEY = "refreshToken";
-console.log("API_BASE_URL =", API_BASE_URL);
+
 function getAccessToken(): string | null {
   try {
     return localStorage.getItem(AUTH_TOKEN_KEY);
@@ -110,7 +114,9 @@ type BackendNotificationSettings = {
 // ========= МАППЕРЫ БЭК → ФРОНТ =========
 
 function mapBackendUserToAuthUser(u: BackendUser): AuthUser {
-  const nameParts = [u.first_name, u.last_name].filter(Boolean);
+  const nameParts = [u.first_name, u.last_name].filter((v): v is string =>
+    Boolean(v)
+  );
   const name = nameParts.length ? nameParts.join(" ") : u.email;
 
   const allowedRoles: AuthUser["role"][] = ["student", "teacher", "admin"];
@@ -143,7 +149,6 @@ function mapBackendProfile(p: BackendProfile): Profile {
     group: p.group ?? "",
     university: p.university ?? "",
     timezone: p.timezone ?? "",
-    // enrolledSince / completedCourses можно оставить undefined
   };
 }
 
@@ -168,6 +173,8 @@ function mapFrontendNotifToBackend(
     email_deadline_reminder: n.inAppReminders,
   };
 }
+
+// ========= ОБЩИЙ request С ЖЁСТКИМ ФЕЙЛОМ ПО ЛЮБОМУ !ok =========
 
 async function request<T>(
   path: string,
@@ -198,11 +205,13 @@ async function request<T>(
 
     clearTimeout(id);
 
+    // Любой не-2xx ответ считаем ошибкой → уйдём в catch и возьмём mock
     if (!res.ok) {
       throw new Error(`HTTP ${res.status}`);
     }
 
     if (res.status === 204) {
+      // нет тела
       return undefined as T;
     }
 
@@ -229,7 +238,6 @@ export async function apiLogin(
     setTokens(tokens);
 
     const user = mapBackendUserToAuthUser(data.user);
-
     return { user, tokens };
   } catch (error) {
     console.warn("apiLogin failed, using mock user", error);
@@ -271,7 +279,6 @@ export async function apiSignup(
     setTokens(tokens);
 
     const user = mapBackendUserToAuthUser(data.user);
-
     return { user, tokens };
   } catch (error) {
     console.warn("apiSignup failed, using mock user", error);
@@ -387,36 +394,23 @@ export async function apiChangePassword(
 
 // ========= COURSES =========
 
-// Бэкенд может вернуть как чистый массив, так и объект-обёртку
-type BackendCoursesResponse =
-  | StudentCourse[]
-  | { items: StudentCourse[] }
-  | { courses: StudentCourse[] };
-
 export async function apiGetStudentCourses(
   status?: "active" | "completed" | "all"
 ): Promise<StudentCourse[]> {
   try {
     const qs = status ? `?status=${status}` : "";
-    const res = await request<BackendCoursesResponse>(`/student/courses${qs}`);
+    const res = await request<StudentCourse[] | { items?: StudentCourse[] }>(
+      `/student/courses${qs}`
+    );
 
-    // 1) Чистый массив
-    if (Array.isArray(res)) {
-      return res;
-    }
+    // Нормализуем: ВСЕГДА отдаём массив
+    const list = Array.isArray(res)
+      ? res
+      : Array.isArray(res.items)
+      ? res.items
+      : [];
 
-    // 2) Обёртка { items: [...] }
-    if ("items" in res && Array.isArray(res.items)) {
-      return res.items;
-    }
-
-    // 3) Обёртка { courses: [...] }
-    if ("courses" in res && Array.isArray(res.courses)) {
-      return res.courses;
-    }
-
-    console.warn("apiGetStudentCourses: unexpected response shape", res);
-    return mockStudentCourses;
+    return list;
   } catch (error) {
     console.warn("apiGetStudentCourses failed, using mock", error);
     return mockStudentCourses;
@@ -443,7 +437,7 @@ export async function apiGetCourseMaterials(
     const res = await request<{ modules: CourseModuleMaterials[] }>(
       `/courses/${courseId}/materials`
     );
-    return res.modules;
+    return Array.isArray(res.modules) ? res.modules : [];
   } catch (error) {
     console.warn("apiGetCourseMaterials failed, using mock", error);
     return mockCourseMaterials;
@@ -484,9 +478,10 @@ export async function apiGetCourseAssignments(
   courseId: string
 ): Promise<AssignmentListItem[]> {
   try {
-    return await request<AssignmentListItem[]>(
+    const res = await request<AssignmentListItem[]>(
       `/courses/${courseId}/assignments`
     );
+    return Array.isArray(res) ? res : [];
   } catch (error) {
     console.warn("apiGetCourseAssignments failed, using mock", error);
     return mockAssignmentsList;
@@ -508,9 +503,10 @@ export async function apiGetAssignmentSubmissions(
   assignmentId: string
 ): Promise<AssignmentSubmission[]> {
   try {
-    return await request<AssignmentSubmission[]>(
+    const res = await request<AssignmentSubmission[]>(
       `/assignments/${assignmentId}/submissions`
     );
+    return Array.isArray(res) ? res : [];
   } catch (error) {
     console.warn("apiGetAssignmentSubmissions failed, using mock", error);
     return mockSubmissions;
@@ -562,7 +558,10 @@ export async function apiGetCourseTests(
   courseId: string
 ): Promise<CourseTestListItem[]> {
   try {
-    return await request<CourseTestListItem[]>(`/courses/${courseId}/tests`);
+    const res = await request<CourseTestListItem[]>(
+      `/courses/${courseId}/tests`
+    );
+    return Array.isArray(res) ? res : [];
   } catch (error) {
     console.warn("apiGetCourseTests failed, using mock", error);
     return mockTestsList;
@@ -599,7 +598,10 @@ export async function apiGetChatChannels(
   courseId: string
 ): Promise<ChatChannel[]> {
   try {
-    return await request<ChatChannel[]>(`/courses/${courseId}/chat/channels`);
+    const res = await request<ChatChannel[]>(
+      `/courses/${courseId}/chat/channels`
+    );
+    return Array.isArray(res) ? res : [];
   } catch (error) {
     console.warn("apiGetChatChannels failed, using mock", error);
     return mockChatChannels;
@@ -656,7 +658,8 @@ export async function apiGetCalendar(
 ): Promise<CalendarEvent[]> {
   try {
     const qs = `?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`;
-    return await request<CalendarEvent[]>(`/calendar${qs}`);
+    const res = await request<CalendarEvent[]>(`/calendar${qs}`);
+    return Array.isArray(res) ? res : [];
   } catch (error) {
     console.warn("apiGetCalendar failed, using mock", error);
     return mockCalendarEvents;
@@ -667,7 +670,8 @@ export async function apiGetCalendar(
 
 export async function apiGetNotifications(): Promise<NotificationItem[]> {
   try {
-    return await request<NotificationItem[]>("/notifications");
+    const res = await request<NotificationItem[]>("/notifications");
+    return Array.isArray(res) ? res : [];
   } catch (error) {
     console.warn("apiGetNotifications failed, using mock", error);
     return mockNotifications;

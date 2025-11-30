@@ -429,37 +429,43 @@ const CourseDetail = () => {
                                   ) : (
                                     <ul className="space-y-1.5">
                                       {moduleAssignments.map((ass) => (
-                                        <li
-                                          key={ass.id}
-                                          className="flex items-center justify-between rounded-md bg-background px-2 py-1.5 text-xs shadow-sm"
-                                        >
-                                          <div className="flex items-center gap-2">
-                                            <FileText className="h-3.5 w-3.5 text-primary" />
-                                            <div>
-                                              <p className="font-medium">
-                                                {ass.title}
-                                              </p>
-                                              <p className="text-[11px] text-muted-foreground">
-                                                дедлайн{" "}
-                                                {new Date(
-                                                  ass.deadline
-                                                ).toLocaleDateString("ru-RU", {
-                                                  day: "2-digit",
-                                                  month: "short",
-                                                })}
-                                              </p>
+                                        <li key={ass.id}>
+                                          <Link
+                                            to={`/courses/${courseId}/assignments/${ass.id}`}
+                                            className="flex items-center justify-between rounded-md bg-background px-2 py-1.5 text-xs shadow-sm hover:bg-accent/40 transition-colors"
+                                          >
+                                            <div className="flex items-center gap-2">
+                                              <FileText className="h-3.5 w-3.5 text-primary" />
+                                              <div>
+                                                <p className="font-medium">
+                                                  {ass.title}
+                                                </p>
+                                                <p className="text-[11px] text-muted-foreground">
+                                                  дедлайн{" "}
+                                                  {new Date(
+                                                    ass.deadline
+                                                  ).toLocaleDateString(
+                                                    "ru-RU",
+                                                    {
+                                                      day: "2-digit",
+                                                      month: "short",
+                                                    }
+                                                  )}
+                                                </p>
+                                              </div>
                                             </div>
-                                          </div>
-                                          <span className="text-[11px] text-muted-foreground">
-                                            {ass.status === "graded" &&
-                                            ass.grade != null
-                                              ? `${ass.grade} баллов`
-                                              : ass.status === "submitted"
-                                              ? "отправлено"
-                                              : ass.status === "needs_revision"
-                                              ? "на доработке"
-                                              : "не выполнено"}
-                                          </span>
+                                            <span className="text-[11px] text-muted-foreground">
+                                              {ass.status === "graded" &&
+                                              ass.grade != null
+                                                ? `${ass.grade} баллов`
+                                                : ass.status === "submitted"
+                                                ? "отправлено"
+                                                : ass.status ===
+                                                  "needs_revision"
+                                                ? "на доработке"
+                                                : "не выполнено"}
+                                            </span>
+                                          </Link>
                                         </li>
                                       ))}
                                     </ul>

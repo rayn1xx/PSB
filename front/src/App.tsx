@@ -11,6 +11,7 @@ import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
 import CourseDetail from "./pages/CourseDetail";
 import CourseLearn from "@/pages/CourseLearn";
+import AssignmentDetailPage from "./pages/AssignmentDetail";
 
 const queryClient = new QueryClient();
 
@@ -32,22 +33,18 @@ const App = () => (
                 <Routes>
                   {/* Главная: список курсов */}
                   <Route path="/" element={<Courses />} />
-
-                  {/* Детали курса */}
+                  <Route path="courses" element={<Courses />} />
                   <Route path="courses/:courseId" element={<CourseDetail />} />
-
-                  {/* Обучение по курсу */}
+                  <Route
+                    path="courses/:courseId/assignments/:assignmentId"
+                    element={<AssignmentDetailPage />}
+                  />
                   <Route
                     path="courses/:courseId/learn"
                     element={<CourseLearn />}
                   />
-
-                  {/* Календарь и профиль как относительные пути */}
-                  <Route path="calendar" element={<Calendar />} />
-                  <Route path="profile" element={<Profile />} />
-
-                  {/* 404 внутри лэйаута */}
-                  <Route path="*" element={<NotFound />} />
+                  <Route path="/calendar" element={<Calendar />} />
+                  <Route path="/profile" element={<Profile />} />
                 </Routes>
               </MainLayout>
             }

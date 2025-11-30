@@ -1,4 +1,6 @@
-import { Link } from "react-router-dom";
+// src/pages/Courses.tsx
+import { useEffect, useMemo, useState } from "react";
+import { Link, useSearchParams } from "react-router-dom";
 import {
   Card,
   CardContent,
@@ -6,287 +8,301 @@ import {
   CardTitle,
   CardDescription,
 } from "@/components/ui/card";
-import { Progress } from "@/components/ui/progress";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Progress } from "@/components/ui/progress";
 import {
   BookOpen,
-  Clock,
-  Users,
-  ArrowRight,
+  CalendarDays,
   CheckCircle2,
-  AlertCircle,
+  Clock,
+  PlayCircle,
 } from "lucide-react";
-import { cn } from "@/lib/utils";
-import { useEffect, useMemo, useState } from "react";
+
 import { apiGetStudentCourses } from "@/api/api";
-import type { StudentCourse } from "@/api/types";
+import type { StudentCourse, CourseStatus } from "@/api/types";
 
 const Courses = () => {
+  const [searchParams, setSearchParams] = useSearchParams();
   const [courses, setCourses] = useState<StudentCourse[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const tabFromUrl = searchParams.get("status");
+  const [activeTab, setActiveTab] = useState<
+    "all" | "in_progress" | "completed"
+  >(
+    tabFromUrl === "in_progress" || tabFromUrl === "completed"
+      ? tabFromUrl
+      : "all"
+  );
 
   useEffect(() => {
-    let isMounted = true;
+    let cancelled = false;
 
     async function load() {
+      setIsLoading(true);
+      setError(null);
       try {
         const data = await apiGetStudentCourses("all");
-        if (!isMounted) return;
-        setCourses(data);
+
+        // Защита от странных ответов: всегда приводим к массиву
+        const normalized: StudentCourse[] = Array.isArray(data) ? data : [];
+
+        if (!cancelled) {
+          setCourses(normalized);
+        }
       } catch (e) {
-        console.error(e);
+        console.error("load courses failed", e);
+        if (!cancelled) {
+          setError("Не удалось загрузить курсы");
+          setCourses([]); // на всякий случай
+        }
       } finally {
-        if (isMounted) setIsLoading(false);
+        if (!cancelled) {
+          setIsLoading(false);
+        }
       }
     }
 
     load();
 
     return () => {
-      isMounted = false;
+      cancelled = true;
     };
   }, []);
 
-  const safeCourses = Array.isArray(courses) ? courses : [];
-  const activeCourses = safeCourses.filter((c) => c.status === "in_progress");
-  const completedCourses = safeCourses.filter((c) => c.status === "completed");
-
-  const nearestDeadline = useMemo(() => {
-    const withDeadlines = courses.filter((c) => c.nextDeadline);
-    if (!withDeadlines.length) return null;
-    const min = withDeadlines.reduce((acc, cur) =>
-      new Date(cur.nextDeadline!) < new Date(acc.nextDeadline!) ? cur : acc
-    );
-    return min.nextDeadline!;
-  }, [courses]);
-
-  const formatDate = (iso: string) =>
-    new Date(iso).toLocaleDateString("ru-RU", {
-      day: "2-digit",
-      month: "short",
+  // синхронизация таба с query-параметром
+  useEffect(() => {
+    setSearchParams(activeTab === "all" ? {} : { status: activeTab }, {
+      replace: true,
     });
+  }, [activeTab, setSearchParams]);
 
-  const CourseCard = ({ course }: { course: StudentCourse }) => {
-    const hasNewComments = false; // этого поля нет в API – пока заглушка
-    const completedModules = Math.round(course.progressPercent / 25);
-    const totalModules = 4;
-    const progress = course.progressPercent;
-    const isCompleted = course.status === "completed";
+  // безопасный массив, даже если кто-то вдруг поменяет тип стейта
+  const safeCourses: StudentCourse[] = useMemo(
+    () => (Array.isArray(courses) ? courses : []),
+    [courses]
+  );
 
-    const nextAction =
-      !isCompleted && course.nextDeadline
-        ? "Сдать ближайшее задание"
-        : undefined;
+  const filteredCourses = useMemo(() => {
+    if (activeTab === "all") return safeCourses;
 
-    const nextDeadlineLabel = course.nextDeadline
-      ? formatDate(course.nextDeadline)
-      : null;
+    const map: Record<"in_progress" | "completed", CourseStatus[]> = {
+      in_progress: ["in_progress", "not_started"],
+      completed: ["completed"],
+    };
 
-    return (
-      <Card
-        className={cn(
-          "group relative overflow-hidden transition-all hover:shadow-lg hover:shadow-primary/20",
-          hasNewComments && "ring-2 ring-accent"
-        )}
-      >
-        {hasNewComments && (
-          <div className="absolute right-4 top-4 z-10">
-            <Badge variant="default" className="bg-accent">
-              Новые комментарии
-            </Badge>
-          </div>
-        )}
+    const allowedStatuses = map[activeTab];
 
-        <CardHeader>
-          <div className="flex items-start justify-between gap-4">
-            <div className="space-y-1">
-              <CardTitle className="text-xl group-hover:text-primary transition-colors">
-                {course.title}
-              </CardTitle>
-              <CardDescription>{course.description}</CardDescription>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-4 text-sm text-muted-foreground mt-4">
-            <div className="flex items-center gap-1">
-              <Users className="h-4 w-4" />
-              <span>{course.instructor}</span>
-            </div>
-            <div className="flex items-center gap-1">
-              <BookOpen className="h-4 w-4" />
-              <span>
-                {completedModules}/{totalModules} модулей
-              </span>
-            </div>
-          </div>
-        </CardHeader>
-
-        <CardContent className="space-y-4">
-          {/* Progress */}
-          <div className="space-y-2">
-            <div className="flex items-center justify-between text-sm">
-              <span className="text-muted-foreground">Прогресс</span>
-              <span className="font-semibold">{progress}%</span>
-            </div>
-            <Progress value={progress} className="h-2" />
-          </div>
-
-          {/* Next Action */}
-          {nextAction && nextDeadlineLabel && (
-            <div className="flex items-start gap-2 rounded-lg bg-secondary/50 p-3">
-              <Clock className="h-4 w-4 mt-0.5 text-accent flex-shrink-0" />
-              <div className="flex-1 space-y-1">
-                <p className="text-sm font-medium">{nextAction}</p>
-                <p className="text-xs text-muted-foreground">
-                  до {nextDeadlineLabel}
-                </p>
-              </div>
-            </div>
-          )}
-
-          {isCompleted && (
-            <div className="flex items-center gap-2 rounded-lg bg-success/10 p-3 text-success">
-              <CheckCircle2 className="h-4 w-4" />
-              <span className="text-sm font-medium">Курс завершён</span>
-            </div>
-          )}
-
-          {/* Actions */}
-          <Link to={`/courses/${course.id}`}>
-            <Button className="w-full group/btn">
-              {isCompleted ? "Посмотреть курс" : "Продолжить обучение"}
-              <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover/btn:translate-x-1" />
-            </Button>
-          </Link>
-        </CardContent>
-      </Card>
-    );
-  };
+    return safeCourses.filter((c) => allowedStatuses.includes(c.status));
+  }, [safeCourses, activeTab]);
 
   return (
-    <div className="space-y-6 pb-20 md:pb-6 max-w-[1400px] mx-auto">
+    <div className="space-y-6 pb-20 md:pb-6">
       {/* Header */}
-      <div className="space-y-2">
-        <h1 className="text-3xl font-bold">Мои курсы</h1>
-        <p className="text-muted-foreground">
-          Управляйте своим обучением и отслеживайте прогресс
-        </p>
+      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+        <div className="space-y-1">
+          <h1 className="text-3xl font-bold tracking-tight">Мои курсы</h1>
+          <p className="text-sm text-muted-foreground">
+            Продолжайте обучение, следите за прогрессом и дедлайнами.
+          </p>
+        </div>
+
+        <div className="flex items-center gap-3">
+          <Button asChild variant="outline" size="sm">
+            <Link to="/calendar">
+              <CalendarDays className="mr-2 h-4 w-4" />
+              Календарь дедлайнов
+            </Link>
+          </Button>
+        </div>
       </div>
 
-      {/* Stats */}
+      {/* Статистика по курсам */}
       <div className="grid gap-4 md:grid-cols-3">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Активных курсов
-            </CardTitle>
-            <BookOpen className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-sm font-medium">Всего курсов</CardTitle>
+            <BookOpen className="h-4 w-4 text-primary" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">
-              {isLoading ? "…" : activeCourses.length}
-            </div>
+            <div className="text-2xl font-bold">{safeCourses.length}</div>
+            <p className="text-xs text-muted-foreground">
+              Активные и завершённые программы.
+            </p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Завершённых курсов
+            <CardTitle className="text-sm font-medium">
+              В процессе обучения
             </CardTitle>
-            <CheckCircle2 className="h-4 w-4 text-muted-foreground" />
+            <Clock className="h-4 w-4 text-primary" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {isLoading ? "…" : completedCourses.length}
+              {
+                safeCourses.filter(
+                  (c) =>
+                    c.status === "in_progress" || c.status === "not_started"
+                ).length
+              }
             </div>
+            <p className="text-xs text-muted-foreground">
+              Курсы, над которыми вы сейчас работаете.
+            </p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Ближайший дедлайн
-            </CardTitle>
-            <AlertCircle className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-sm font-medium">Завершено</CardTitle>
+            <CheckCircle2 className="h-4 w-4 text-primary" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {nearestDeadline ? formatDate(nearestDeadline) : "Нет дедлайнов"}
+              {safeCourses.filter((c) => c.status === "completed").length}
             </div>
+            <p className="text-xs text-muted-foreground">
+              Курсы, по которым завершены все активности.
+            </p>
           </CardContent>
         </Card>
       </div>
 
-      {/* Course List */}
-      <Tabs defaultValue="active" className="space-y-4">
-        <TabsList>
-          <TabsTrigger value="active">
-            Активные ({activeCourses.length})
-          </TabsTrigger>
-          <TabsTrigger value="completed">
-            Завершённые ({completedCourses.length})
-          </TabsTrigger>
-          <TabsTrigger value="all">Все ({courses.length})</TabsTrigger>
-        </TabsList>
+      {/* Tabs + список курсов */}
+      <Card>
+        <CardHeader className="border-b border-border">
+          <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+            <div>
+              <CardTitle>Список курсов</CardTitle>
+              <CardDescription>
+                Выберите курс, чтобы посмотреть детали и материалы.
+              </CardDescription>
+            </div>
+            <Tabs
+              value={activeTab}
+              onValueChange={(val) =>
+                setActiveTab(val as "all" | "in_progress" | "completed")
+              }
+              className="w-full md:w-auto"
+            >
+              <TabsList>
+                <TabsTrigger value="all">Все</TabsTrigger>
+                <TabsTrigger value="in_progress">В процессе</TabsTrigger>
+                <TabsTrigger value="completed">Завершённые</TabsTrigger>
+              </TabsList>
+            </Tabs>
+          </div>
+        </CardHeader>
+        <CardContent className="p-0">
+          {isLoading && (
+            <div className="p-6 text-sm text-muted-foreground">
+              Загружаем ваши курсы...
+            </div>
+          )}
 
-        <TabsContent value="active" className="space-y-4">
-          {isLoading ? (
-            <div className="text-sm text-muted-foreground">
-              Загружаем курсы...
+          {!isLoading && error && (
+            <div className="p-6 text-sm text-destructive">{error}</div>
+          )}
+
+          {!isLoading && !error && filteredCourses.length === 0 && (
+            <div className="p-6 text-sm text-muted-foreground">
+              Курсов для выбранного фильтра пока нет.
             </div>
-          ) : activeCourses.length === 0 ? (
-            <div className="text-sm text-muted-foreground">
-              Активные курсы пока не найдены
-            </div>
-          ) : (
-            <div className="grid gap-4 md:grid-cols-2">
-              {activeCourses.map((course) => (
+          )}
+
+          {!isLoading && !error && filteredCourses.length > 0 && (
+            <div className="grid gap-4 p-4 md:grid-cols-2 xl:grid-cols-3">
+              {filteredCourses.map((course) => (
                 <CourseCard key={course.id} course={course} />
               ))}
             </div>
           )}
-        </TabsContent>
-
-        <TabsContent value="completed" className="space-y-4">
-          {isLoading ? (
-            <div className="text-sm text-muted-foreground">
-              Загружаем курсы...
-            </div>
-          ) : completedCourses.length === 0 ? (
-            <div className="text-sm text-muted-foreground">
-              Завершённых курсов пока нет
-            </div>
-          ) : (
-            <div className="grid gap-4 md:grid-cols-2">
-              {completedCourses.map((course) => (
-                <CourseCard key={course.id} course={course} />
-              ))}
-            </div>
-          )}
-        </TabsContent>
-
-        <TabsContent value="all" className="space-y-4">
-          {isLoading ? (
-            <div className="text-sm text-muted-foreground">
-              Загружаем курсы...
-            </div>
-          ) : courses.length === 0 ? (
-            <div className="text-sm text-muted-foreground">
-              Курсы пока не найдены
-            </div>
-          ) : (
-            <div className="grid gap-4 md:grid-cols-2">
-              {courses.map((course) => (
-                <CourseCard key={course.id} course={course} />
-              ))}
-            </div>
-          )}
-        </TabsContent>
-      </Tabs>
+        </CardContent>
+      </Card>
     </div>
+  );
+};
+
+const CourseCard = ({ course }: { course: StudentCourse }) => {
+  const isCompleted = course.status === "completed";
+  const isInProgress = course.status === "in_progress";
+
+  return (
+    <Card className="flex flex-col justify-between overflow-hidden">
+      <CardHeader className="space-y-2 pb-3">
+        <div className="flex items-center justify-between gap-2">
+          <Badge variant={isCompleted ? "default" : "outline"}>
+            {isCompleted
+              ? "Завершён"
+              : isInProgress
+              ? "В процессе"
+              : "Не начат"}
+          </Badge>
+          {course.nextDeadline && (
+            <span className="flex items-center gap-1 text-[11px] text-muted-foreground">
+              <CalendarDays className="h-3 w-3" />
+              {new Date(course.nextDeadline).toLocaleDateString("ru-RU", {
+                day: "2-digit",
+                month: "short",
+              })}
+            </span>
+          )}
+        </div>
+        <CardTitle className="line-clamp-2 text-base">{course.title}</CardTitle>
+        <CardDescription className="line-clamp-2 text-xs">
+          {course.description}
+        </CardDescription>
+      </CardHeader>
+
+      <CardContent className="space-y-4 pb-4">
+        <div className="space-y-2">
+          <div className="flex items-center justify-between text-xs">
+            <span className="flex items-center gap-1 text-muted-foreground">
+              <BookOpen className="h-3 w-3" />
+              Прогресс
+            </span>
+            <span className="font-medium">
+              {course.progressPercent.toFixed(0)}%
+            </span>
+          </div>
+          <Progress value={course.progressPercent} className="h-2" />
+        </div>
+
+        {course.badges.length > 0 && (
+          <div className="flex flex-wrap gap-1.5">
+            {course.badges.map((b) => (
+              <Badge
+                key={b}
+                variant="outline"
+                className="text-[10px] font-normal"
+              >
+                {b}
+              </Badge>
+            ))}
+          </div>
+        )}
+
+        <div className="flex items-center justify-between pt-1">
+          <div className="flex flex-col text-[11px] text-muted-foreground">
+            <span>Преподаватель</span>
+            <span className="font-medium text-foreground">
+              {course.instructor}
+            </span>
+          </div>
+          <Button asChild size="sm" className="gap-1 text-xs">
+            <Link to={`/courses/${course.id}`}>
+              <PlayCircle className="h-4 w-4" />
+              Открыть курс
+            </Link>
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
   );
 };
 

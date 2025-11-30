@@ -86,9 +86,19 @@ const MainLayout = ({ children }: MainLayoutProps) => {
 
         // 3. Тянем уведомления, но ошибки не считаем поводом выкидывать на /auth
         try {
-          const notifs = await apiGetNotifications();
-          if (!isMounted) return;
-          setNotifications(notifs.filter((n) => !n.read).length);
+          try {
+            const notifs = await apiGetNotifications();
+            if (!isMounted) return;
+
+            const unreadCount = Array.isArray(notifs)
+              ? notifs.filter((n) => !n.read).length
+              : 0;
+
+            setNotifications(unreadCount);
+          } catch (e) {
+            console.warn("load notifications failed", e);
+            setNotifications(0);
+          }
         } catch (e) {
           console.warn("load notifications failed", e);
         }

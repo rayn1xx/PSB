@@ -175,7 +175,8 @@ export const mockAssignmentsList: AssignmentListItem[] = [
   {
     id: "ass_1",
     title: "ДЗ 3.2: Реализация API аутентификации",
-    module: "Модуль 3",
+    // ВАЖНО: совпадает с модулем mockCourseOverview.modules[1].title
+    module: "Безопасность и шифрование",
     deadline: addDays(2),
     status: "submitted",
     grade: null,
@@ -183,8 +184,9 @@ export const mockAssignmentsList: AssignmentListItem[] = [
   },
   {
     id: "ass_2",
-    title: "ДЗ 2.1: Проектирование базы данных",
-    module: "Модуль 2",
+    title: "ДЗ 1.1: Проектирование базы данных",
+    // ВАЖНО: совпадает с модулем mockCourseOverview.modules[0].title
+    module: "Введение в финтех",
     deadline: addDays(-1),
     status: "graded",
     grade: 9,
@@ -198,7 +200,8 @@ export const mockAssignmentDetail: AssignmentDetail = {
   title: "ДЗ 3.2: Реализация API аутентификации",
   description:
     "Реализуйте REST API для аутентификации студентов (регистрация, логин, refresh).",
-  module: "Модуль 3",
+  // Тоже привязан к модулю "Безопасность и шифрование"
+  module: "Безопасность и шифрование",
   deadline: addDays(2),
   status: "submitted",
   grade: null,
@@ -255,7 +258,8 @@ export const mockTestsList: CourseTestListItem[] = [
   {
     id: "test_1",
     title: "Тест по модулю 3",
-    module: "Модуль 3",
+    // Привязываем к модулю "Безопасность и шифрование"
+    module: "Безопасность и шифрование",
     deadline: addDays(5),
     status: "not_started",
     attemptsUsed: 0,
@@ -337,7 +341,8 @@ export const mockCourseGrades: CourseGrades = {
       id: "ass_1",
       type: "assignment",
       title: "ДЗ 3.2",
-      module: "Модуль 3",
+      // Привязка к модулю, как выше
+      module: "Безопасность и шифрование",
       score: 7,
       maxScore: 10,
       status: "graded",
@@ -346,7 +351,7 @@ export const mockCourseGrades: CourseGrades = {
       id: "test_1",
       type: "test",
       title: "Тест по модулю 3",
-      module: "Модуль 3",
+      module: "Безопасность и шифрование",
       score: 9,
       maxScore: 10,
       status: "graded",
