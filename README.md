@@ -1,10 +1,12 @@
 # Teaching Platform
 
-##ссылка на доступ https://psbstudy.vercel.app/ (только фронт)
+ссылка на доступ https://psbstudy.vercel.app/ (только фронт)
 
-##Команда Киттики
+демонстрация работы https://drive.google.com/file/d/1KT3SxiuSlfGMStpo6D7ckAIq0UVw87Oz/view?usp=sharing
 
-##Состав:
+Команда Киттики
+
+Состав:
 Кобалиа Злата - продакт
 Пунтиков Алексей - фронтэнд разработчик
 Беляев Сергей - Бэкэнд разработчик
