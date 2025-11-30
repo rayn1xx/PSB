@@ -1,5 +1,6 @@
 # Teaching Platform
 
+ссылка на доступ https://psbstudy.vercel.app/
 Команда Киттики
 Состав:
 Кобалиа Злата - продакт
