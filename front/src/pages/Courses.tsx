@@ -49,10 +49,9 @@ const Courses = () => {
     };
   }, []);
 
-  const activeCourses = courses.filter(
-    (c) => c.status === "in_progress" || c.status === "not_started"
-  );
-  const completedCourses = courses.filter((c) => c.status === "completed");
+  const safeCourses = Array.isArray(courses) ? courses : [];
+  const activeCourses = safeCourses.filter((c) => c.status === "in_progress");
+  const completedCourses = safeCourses.filter((c) => c.status === "completed");
 
   const nearestDeadline = useMemo(() => {
     const withDeadlines = courses.filter((c) => c.nextDeadline);

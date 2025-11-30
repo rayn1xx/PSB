@@ -387,14 +387,36 @@ export async function apiChangePassword(
 
 // ========= COURSES =========
 
+// Бэкенд может вернуть как чистый массив, так и объект-обёртку
+type BackendCoursesResponse =
+  | StudentCourse[]
+  | { items: StudentCourse[] }
+  | { courses: StudentCourse[] };
+
 export async function apiGetStudentCourses(
   status?: "active" | "completed" | "all"
 ): Promise<StudentCourse[]> {
   try {
-    // Параметр добавляем только если это НЕ "all"
-    const qs =
-      status && status !== "all" ? `?status=${encodeURIComponent(status)}` : "";
-    return await request<StudentCourse[]>(`/student/courses${qs}`);
+    const qs = status ? `?status=${status}` : "";
+    const res = await request<BackendCoursesResponse>(`/student/courses${qs}`);
+
+    // 1) Чистый массив
+    if (Array.isArray(res)) {
+      return res;
+    }
+
+    // 2) Обёртка { items: [...] }
+    if ("items" in res && Array.isArray(res.items)) {
+      return res.items;
+    }
+
+    // 3) Обёртка { courses: [...] }
+    if ("courses" in res && Array.isArray(res.courses)) {
+      return res.courses;
+    }
+
+    console.warn("apiGetStudentCourses: unexpected response shape", res);
+    return mockStudentCourses;
   } catch (error) {
     console.warn("apiGetStudentCourses failed, using mock", error);
     return mockStudentCourses;
