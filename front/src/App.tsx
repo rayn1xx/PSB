@@ -21,20 +21,32 @@ const App = () => (
       <Sonner />
       <BrowserRouter>
         <Routes>
+          {/* Страница логина/регистрации */}
           <Route path="/auth" element={<Auth />} />
+
+          {/* Всё остальное под MainLayout */}
           <Route
             path="/*"
             element={
               <MainLayout>
                 <Routes>
+                  {/* Главная: список курсов */}
                   <Route path="/" element={<Courses />} />
+
+                  {/* Детали курса */}
                   <Route path="courses/:courseId" element={<CourseDetail />} />
-                  <Route path="/calendar" element={<Calendar />} />
-                  <Route path="/profile" element={<Profile />} />
+
+                  {/* Обучение по курсу */}
                   <Route
                     path="courses/:courseId/learn"
                     element={<CourseLearn />}
                   />
+
+                  {/* Календарь и профиль как относительные пути */}
+                  <Route path="calendar" element={<Calendar />} />
+                  <Route path="profile" element={<Profile />} />
+
+                  {/* 404 внутри лэйаута */}
                   <Route path="*" element={<NotFound />} />
                 </Routes>
               </MainLayout>

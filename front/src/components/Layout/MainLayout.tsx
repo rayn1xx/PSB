@@ -51,27 +51,64 @@ const MainLayout = ({ children }: MainLayoutProps) => {
     let isMounted = true;
 
     async function init() {
-      try {
-        // 1) Пытаемся получить юзера с бэка
-        const me = await apiMe();
+      // 1. Проверяем локально: есть ли токен или user
+      const token = localStorage.getItem("accessToken");
+      const storedUser = localStorage.getItem("user");
 
+      // Если вообще ничего нет – реально гоним на /auth
+      if (!token && !storedUser) {
+        navigate("/auth", { replace: true });
+        return;
+      }
+
+      try {
+        // 2. Пытаемся подтянуть me с бэка (если упадёт – apiMe вернёт мок)
+        const me = await apiMe();
         if (!isMounted) return;
 
-        if (!me) {
-          // Нет токена / не залогинен
-          navigate("/auth");
-          return;
+        if (me) {
+          setUser({ name: me.name, email: me.email });
+        } else if (storedUser) {
+          // fallback: берём из localStorage
+          try {
+            const parsed = JSON.parse(storedUser) as {
+              name?: string;
+              email?: string;
+            };
+            setUser({
+              name: parsed.name ?? "Студент",
+              email: parsed.email ?? "",
+            });
+          } catch {
+            // игнорируем
+          }
         }
 
-        setUser({ name: me.name, email: me.email });
-
-        // 2) Тянем уведомления (если бэк упадёт, apiGetNotifications вернёт мок)
-        const notifs = await apiGetNotifications();
-        if (!isMounted) return;
-        setNotifications(notifs.filter((n) => !n.read).length);
+        // 3. Тянем уведомления, но ошибки не считаем поводом выкидывать на /auth
+        try {
+          const notifs = await apiGetNotifications();
+          if (!isMounted) return;
+          setNotifications(notifs.filter((n) => !n.read).length);
+        } catch (e) {
+          console.warn("load notifications failed", e);
+        }
       } catch (e) {
-        // На всякий случай последний fallback – всё равно отправляем на /auth
-        navigate("/auth");
+        console.warn("init layout failed", e);
+        // ВАЖНО: не делаем navigate("/auth"), просто живём с мок-юзером
+        if (storedUser) {
+          try {
+            const parsed = JSON.parse(storedUser) as {
+              name?: string;
+              email?: string;
+            };
+            setUser({
+              name: parsed.name ?? "Студент",
+              email: parsed.email ?? "",
+            });
+          } catch {
+            // ignore
+          }
+        }
       }
     }
 

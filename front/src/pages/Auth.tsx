@@ -73,7 +73,7 @@ const Auth = () => {
           role: user.role,
         })
       );
-
+      window.location.href = "/";
       toast({
         title: "Вход выполнен",
         description: "Добро пожаловать в ПСБ Школу Цифровых Ролей",
