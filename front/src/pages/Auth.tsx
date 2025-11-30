@@ -34,6 +34,7 @@ const signupSchema = loginSchema
 const Auth = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
+
   const [isLoading, setIsLoading] = useState(false);
 
   const [loginData, setLoginData] = useState({
@@ -50,6 +51,7 @@ const Auth = () => {
 
   const [errors, setErrors] = useState<Record<string, string>>({});
 
+  // ---------- LOGIN ----------
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrors({});
@@ -59,14 +61,16 @@ const Auth = () => {
       const validated = loginSchema.parse(loginData);
 
       const { user } = await apiLogin(validated.email, validated.password);
+      // apiLogin сам кладёт accessToken/refreshToken в localStorage
 
-      // Чтобы MainLayout не ломался, дублируем юзера в localStorage
+      // Дублируем инфу о пользователе для layout’ов, если они читают user из localStorage
       localStorage.setItem(
         "user",
         JSON.stringify({
           id: user.id,
           name: user.name,
           email: user.email,
+          role: user.role,
         })
       );
 
@@ -75,7 +79,8 @@ const Auth = () => {
         description: "Добро пожаловать в ПСБ Школу Цифровых Ролей",
       });
 
-      navigate("/");
+      // После логина идём на главную (или на /courses, если так задумано)
+      navigate("/", { replace: true });
     } catch (error) {
       if (error instanceof z.ZodError) {
         const fieldErrors: Record<string, string> = {};
@@ -98,6 +103,7 @@ const Auth = () => {
     }
   };
 
+  // ---------- SIGNUP ----------
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrors({});
@@ -111,6 +117,7 @@ const Auth = () => {
         validated.email,
         validated.password
       );
+      // apiSignup так же кладёт токены в localStorage
 
       localStorage.setItem(
         "user",
@@ -118,6 +125,7 @@ const Auth = () => {
           id: user.id,
           name: user.name,
           email: user.email,
+          role: user.role,
         })
       );
 
@@ -126,7 +134,7 @@ const Auth = () => {
         description: "Ваш аккаунт создан. Добро пожаловать!",
       });
 
-      navigate("/");
+      navigate("/", { replace: true });
     } catch (error) {
       if (error instanceof z.ZodError) {
         const fieldErrors: Record<string, string> = {};
@@ -232,7 +240,7 @@ const Auth = () => {
                       <Input
                         id="login-email"
                         type="email"
-                        placeholder="ivan.ivanov@psb.ru"
+                        placeholder="student1@example.com"
                         className="pl-10"
                         value={loginData.email}
                         onChange={(e) =>
@@ -299,7 +307,7 @@ const Auth = () => {
                       <Input
                         id="signup-name"
                         type="text"
-                        placeholder="Иван Иванов"
+                        placeholder="Иван Петров"
                         className="pl-10"
                         value={signupData.name}
                         onChange={(e) =>
@@ -319,7 +327,7 @@ const Auth = () => {
                       <Input
                         id="signup-email"
                         type="email"
-                        placeholder="ivan.ivanov@psb.ru"
+                        placeholder="student1@example.com"
                         className="pl-10"
                         value={signupData.email}
                         onChange={(e) =>

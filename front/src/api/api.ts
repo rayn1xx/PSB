@@ -391,7 +391,9 @@ export async function apiGetStudentCourses(
   status?: "active" | "completed" | "all"
 ): Promise<StudentCourse[]> {
   try {
-    const qs = status ? `?status=${status}` : "";
+    // Параметр добавляем только если это НЕ "all"
+    const qs =
+      status && status !== "all" ? `?status=${encodeURIComponent(status)}` : "";
     return await request<StudentCourse[]>(`/student/courses${qs}`);
   } catch (error) {
     console.warn("apiGetStudentCourses failed, using mock", error);
