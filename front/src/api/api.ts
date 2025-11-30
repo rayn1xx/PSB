@@ -45,11 +45,11 @@ import {
 
 // ========= БАЗОВЫЙ HTTP-ХЕЛПЕР =========
 
-const API_BASE_URL = import.meta.env.VITE_API_URL?.replace(/\/$/, "") || "/api";
-
+const RAW_BASE_URL = import.meta.env.VITE_API_URL?.replace(/\/$/, "") || "";
+const API_BASE_URL = RAW_BASE_URL ? `${RAW_BASE_URL}/api` : "/api";
 const AUTH_TOKEN_KEY = "accessToken";
 const REFRESH_TOKEN_KEY = "refreshToken";
-
+console.log("API_BASE_URL =", API_BASE_URL);
 function getAccessToken(): string | null {
   try {
     return localStorage.getItem(AUTH_TOKEN_KEY);
