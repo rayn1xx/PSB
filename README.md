@@ -1,6 +1,6 @@
 # Teaching Platform
 
-##ссылка на доступ https://psbstudy.vercel.app/
+##ссылка на доступ https://psbstudy.vercel.app/ (только фронт)
 
 ##Команда Киттики
 
